@@ -404,6 +404,376 @@ Scoring: 0-35 low, 36-65 moderate, 66-100 high. Flag: under $10k liq=high risk, 
         <Overlay>
           <div style={{display:'flex',justifyContent:'center',filter:'drop-shadow(0 0 12px rgba(0,194,255,0.4))',marginBottom:10}}><Logo size={40}/></div>
           <MT>{locked?'Free Scans Used Up':'Upgrade Plan'}</MT>
+          <MS>Choose a plan. Pay via ETH on Base n  pro:     {label:'PRO',     scans:30,     price:'$10/mo', eth:0.004, color:'#A855F7'},
+  alpha:   {label:'ALPHA',   scans:150,    price:'$50/mo', eth:0.018, color:'#F59E0B'},
+  owner:   {label:'OWNER',   scans:999999, price:'∞',      eth:0,     color:'#F59E0B'},
+};
+
+const CHAINS = [
+  {id:'solana',   label:'Solana'},
+  {id:'ethereum', label:'Ethereum'},
+  {id:'base',     label:'Base'},
+  {id:'bsc',      label:'BSC'},
+];
+
+// ─── PALETTE ─────────────────────────────────────────────────────────
+const C = {
+  bg:'#08090D', surface:'#0E1420', surfaceB:'#111827',
+  border:'rgba(0,194,255,0.12)',
+  blue:'#00C2FF', purple:'#A855F7', gold:'#F59E0B',
+  text:'#F0F4FF', textM:'#94A3B8', textD:'#4A5568',
+  danger:'#FF4560', success:'#00E5A0',
+  grad:'linear-gradient(135deg,#00C2FF,#A855F7)',
+  gradFull:'linear-gradient(135deg,#00C2FF 0%,#A855F7 60%,#F59E0B 100%)',
+};
+
+const getRisk = s => {
+  if(s<=35) return {color:C.success, label:'LOW RISK',      bg:'rgba(0,229,160,0.07)',  glow:'rgba(0,229,160,0.2)'};
+  if(s<=65) return {color:C.gold,    label:'MODERATE RISK', bg:'rgba(245,158,11,0.07)', glow:'rgba(245,158,11,0.2)'};
+  return          {color:C.danger,   label:'HIGH RISK',     bg:'rgba(255,69,96,0.07)',  glow:'rgba(255,69,96,0.2)'};
+};
+
+const fmt = n => Number(n||0).toLocaleString();
+const LS  = {
+  get: k => { try{ const v=localStorage.getItem(k); return v?JSON.parse(v):null; }catch{ return null; }},
+  set: (k,v) => { try{ localStorage.setItem(k,JSON.stringify(v)); }catch{} },
+  del: k => { try{ localStorage.removeItem(k); }catch{} },
+};
+
+// Worker API helper
+const api = async (path, body) => {
+  const res = await fetch(`${WORKER}${path}`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body),
+  });
+  return res.json();
+};
+
+// ─── LOGO ─────────────────────────────────────────────────────────────
+function Logo({size=40}){
+  return (
+    <svg width={size} height={size} viewBox="0 0 200 200" fill="none">
+      <defs>
+        <linearGradient id="lgM" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#C0EEFF"/>
+          <stop offset="18%" stopColor="#3DD4FF"/>
+          <stop offset="45%" stopColor="#0099EE"/>
+          <stop offset="78%" stopColor="#0055AA"/>
+          <stop offset="100%" stopColor="#002060"/>
+        </linearGradient>
+        <linearGradient id="lgS" x1="0%" y1="0%" x2="90%" y2="100%">
+          <stop offset="0%" stopColor="#D8F5FF"/>
+          <stop offset="20%" stopColor="#55DDFF"/>
+          <stop offset="48%" stopColor="#00AAFF"/>
+          <stop offset="80%" stopColor="#0066BB"/>
+          <stop offset="100%" stopColor="#002877"/>
+        </linearGradient>
+        <linearGradient id="lgSh" x1="0%" y1="0%" x2="30%" y2="100%">
+          <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.6"/>
+          <stop offset="28%" stopColor="#FFFFFF" stopOpacity="0.15"/>
+          <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0"/>
+        </linearGradient>
+        <filter id="lgG" x="-35%" y="-35%" width="170%" height="170%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="b1"/>
+          <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="b2"/>
+          <feMerge><feMergeNode in="b2"/><feMergeNode in="b1"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="lgSf" x="-15%" y="-15%" width="130%" height="130%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <circle cx="100" cy="100" r="88" fill="rgba(0,160,255,0.07)" filter="url(#lgG)"/>
+      <polygon points="15,15 4,26 174,196 185,185 196,174 26,4" fill="rgba(0,0,12,0.8)"/>
+      <polygon points="185,15 196,26 26,196 15,185 4,174 174,4" fill="rgba(0,0,12,0.8)"/>
+      <polygon points="15,15 4,26 174,196 185,185 196,174 26,4" fill="url(#lgM)" filter="url(#lgSf)"/>
+      <polygon points="15,15 4,26 174,196 185,185 196,174 26,4" fill="url(#lgSh)"/>
+      <polygon points="185,15 196,26 26,196 15,185 4,174 174,4" fill="url(#lgM)" filter="url(#lgSf)"/>
+      <polygon points="185,15 196,26 26,196 15,185 4,174 174,4" fill="url(#lgSh)"/>
+      <path d="M 150,32 C 150,32 74,26 54,66 C 34,106 106,118 124,140 C 142,162 134,184 58,190" stroke="rgba(0,12,30,0.8)" strokeWidth="58" strokeLinecap="round" fill="none"/>
+      <path d="M 152,34 C 152,34 76,28 56,68 C 36,108 108,120 126,142 C 144,164 136,186 60,192" stroke="#003888" strokeWidth="50" strokeLinecap="round" fill="none"/>
+      <path d="M 150,32 C 150,32 74,26 54,66 C 34,106 106,118 124,140 C 142,162 134,184 58,190" stroke="url(#lgS)" strokeWidth="46" strokeLinecap="round" fill="none" filter="url(#lgSf)"/>
+      <path d="M 150,32 C 150,32 74,26 54,66 C 34,106 106,118 124,140 C 142,162 134,184 58,190" stroke="url(#lgSh)" strokeWidth="46" strokeLinecap="round" fill="none"/>
+      <path d="M 149,33 C 149,33 76,27 57,66 C 38,105 108,118 125,140" stroke="#B8F0FF" strokeWidth="3.5" strokeLinecap="round" fill="none" opacity="0.9"/>
+      <path d="M 124,140 C 142,162 134,184 60,190" stroke="#70D8FF" strokeWidth="2.5" strokeLinecap="round" fill="none" opacity="0.5"/>
+    </svg>
+  );
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────
+function App(){
+  const {useState,useEffect,useCallback} = React;
+
+  const [page,setPage]         = useState('splash');
+  const [user,setUser]         = useState(null);
+  const [wallet,setWallet]     = useState(null);
+  const [ready,setReady]       = useState(false);
+  const [connecting,setConnecting] = useState(false);
+  const [walletErr,setWalletErr]   = useState('');
+
+  // scanner
+  const [addr,setAddr]     = useState('');
+  const [chain,setChain]   = useState('ethereum');
+  const [loading,setLoading] = useState(false);
+  const [report,setReport] = useState(null);
+  const [dex,setDex]       = useState(null);
+  const [err,setErr]       = useState(null);
+  const [copied,setCopied] = useState(false);
+
+  // modals
+  const [modal,setModal]     = useState(null);
+  const [selTier,setSelTier] = useState(null);
+  const [txHash,setTxHash]   = useState('');
+  const [vfying,setVfying]   = useState(false);
+  const [vfMsg,setVfMsg]     = useState({text:'',ok:false});
+  const [codeIn,setCodeIn]   = useState('');
+  const [codeMsg,setCodeMsg] = useState({text:'',ok:false});
+
+  // Load saved session
+  useEffect(()=>{
+    const savedWallet = LS.get('xs_wallet');
+    if(savedWallet){
+      loadUser(savedWallet).then(()=>setReady(true));
+    } else {
+      setReady(true);
+    }
+  },[]);
+
+  const loadUser = async (w) => {
+    try {
+      const data = await api('/get-user', {wallet: w});
+      if(data.wallet_address){
+        setWallet(w);
+        setUser(data);
+        setPage('app');
+      }
+    } catch(e){
+      LS.del('xs_wallet');
+    }
+  };
+
+  // Connect wallet
+  const connectWallet = async () => {
+    setWalletErr('');
+    setConnecting(true);
+    try {
+      if(!window.ethereum){
+        setWalletErr('No Web3 wallet detected. Please open this page in MetaMask, Trust Wallet, or any Web3 browser.');
+        setConnecting(false);
+        return;
+      }
+      const accounts = await window.ethereum.request({method:'eth_requestAccounts'});
+      const w = accounts[0];
+      LS.set('xs_wallet', w);
+      await loadUser(w);
+    } catch(e){
+      if(e.code === 4001){
+        setWalletErr('Connection rejected. Please approve the wallet connection to continue.');
+      } else {
+        setWalletErr('Connection failed. Try again.');
+      }
+    }
+    setConnecting(false);
+  };
+
+  const disconnect = () => {
+    LS.del('xs_wallet');
+    setWallet(null);
+    setUser(null);
+    setReport(null);
+    setDex(null);
+    setPage('splash');
+  };
+
+  // Refresh user data
+  const refreshUser = async () => {
+    if(!wallet) return;
+    const data = await api('/get-user', {wallet});
+    if(data.wallet_address) setUser(data);
+  };
+
+  // Code redemption
+  const redeemCode = async () => {
+    const data = await api('/use-code', {wallet, code: codeIn.trim()});
+    if(data.success){
+      setCodeMsg({text:'👑 OWNER MODE UNLOCKED. Unlimited access.',ok:true});
+      await refreshUser();
+      setTimeout(()=>{setModal(null);setCodeMsg({text:'',ok:false});setCodeIn('');},2200);
+    } else {
+      setCodeMsg({text: data.error==='INVALID_CODE'?'Invalid code.':'Error. Try again.',ok:false});
+    }
+  };
+
+  // Payment verification
+  const verifyPayment = async () => {
+    if(!txHash.trim()||!selTier) return;
+    setVfying(true); setVfMsg({text:'',ok:false});
+    const data = await api('/verify-payment', {wallet, txHash:txHash.trim(), tier:selTier});
+    if(data.success){
+      setVfMsg({text:`✅ ${TIERS[selTier].label} unlocked! ${TIERS[selTier].scans} scans ready.`,ok:true});
+      await refreshUser();
+      setTimeout(()=>{setModal(null);setVfMsg({text:'',ok:false});setTxHash('');},3000);
+    } else {
+      const msgs = {
+        TX_ALREADY_USED:'❌ Transaction already used.',
+        TX_NOT_FOUND:'❌ Transaction not found. Check the hash.',
+        TX_PENDING:'⏳ Still pending. Try again shortly.',
+        WRONG_WALLET:'❌ Payment sent to wrong wallet.',
+        UNDERPAID:`❌ Underpaid. Required: ${TIERS[selTier]?.eth} ETH`,
+      };
+      setVfMsg({text: msgs[data.error]||'❌ Verification failed.',ok:false});
+    }
+    setVfying(false);
+  };
+
+  // Fetch DexScreener
+  const fetchDex = async (address, chainId) => {
+    try {
+      const r = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${address}`);
+      const j = await r.json();
+      if(j.pairs?.length>0){
+        const p = j.pairs.find(x=>x.chainId===chainId)||j.pairs[0];
+        return {
+          name:p.baseToken?.name||'Unknown', symbol:p.baseToken?.symbol||'???',
+          price:p.priceUsd||'0', liquidity:p.liquidity?.usd||0,
+          volume24h:p.volume?.h24||0, priceChange24h:p.priceChange?.h24||0,
+          buys24h:p.txns?.h24?.buys||0, sells24h:p.txns?.h24?.sells||0,
+          marketCap:p.marketCap||0, fdv:p.fdv||0,
+          dex:p.dexId||'Unknown', chain:p.chainId||chainId,
+          age:p.pairCreatedAt?Math.floor((Date.now()-p.pairCreatedAt)/86400000):null,
+        };
+      }
+      return null;
+    } catch { return null; }
+  };
+
+  // Analyze
+  const cur    = user?(TIERS[user.tier]||TIERS.free):TIERS.free;
+  const left   = user?.tier==='owner'?'∞':Math.max(0,cur.scans-(user?.scans_used||0));
+  const locked = user?.tier!=='owner'&&typeof left==='number'&&left<=0;
+
+  const analyze = async () => {
+    if(!addr.trim()) return;
+    if(locked){setModal('paywall');return;}
+    setLoading(true); setErr(null); setReport(null); setDex(null);
+    try {
+      const td = await fetchDex(addr.trim(), chain);
+      setDex(td);
+      const ctx = td
+        ? `LIVE DATA: ${td.name}(${td.symbol}) | Chain:${td.chain} | Price:$${td.price} | Liq:$${fmt(td.liquidity)} | Vol24h:$${fmt(td.volume24h)} | Change:${td.priceChange24h}% | Buys:${td.buys24h} Sells:${td.sells24h} | MCap:$${fmt(td.marketCap)} | FDV:$${fmt(td.fdv)} | DEX:${td.dex} | Age:${td.age??'?'}d`
+        : 'No live DexScreener data found.';
+
+      const prompt = `You are XANDRSCAN — elite memecoin risk analyst for retail traders in emerging markets (Nigeria, Africa, Southeast Asia).
+${ctx}
+CONTRACT: ${addr} | CHAIN: ${chain.toUpperCase()}
+Return ONLY valid JSON, no markdown:
+{"tokenName":"string","symbol":"string","riskScore":number,"verdict":"one punchy sentence","redFlags":["max 5"],"greenLights":["max 4"],"keyMetrics":{"liquidity":"value+context","holderConcentration":"estimate","devActivity":"inference","sniperRisk":"low/med/high+reason"},"rugDNA":{"matchScore":number,"patterns":["3-5 specific rug behavioral patterns"],"historicalVerdict":"1-2 sentences comparing to past rugs","timeRisk":"estimated risk window"},"plainEnglishSummary":"3-4 sentences for Lagos mobile trader, no jargon, direct and honest","actionableAdvice":"1-2 sentences","dataConfidence":"high|medium|low"}
+Scoring: 0-35 low, 36-65 moderate, 66-100 high. Flag: under $10k liq=high risk, new+high vol, skewed buys/sells, high FDV/mcap.`;
+
+      const data = await api('/scan', {wallet, prompt});
+
+      if(data.error === 'SCAN_LIMIT_REACHED'){
+        setModal('paywall');
+        setLoading(false);
+        return;
+      }
+
+      const text = data.content?.find(b=>b.type==='text')?.text||'';
+      const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
+      setReport(parsed);
+      await refreshUser();
+    } catch(e){
+      setErr('Analysis failed. Check the address and try again.');
+    }
+    setLoading(false);
+  };
+
+  const shareReport = () => {
+    if(!report) return;
+    const rsk = getRisk(report.riskScore);
+    const txt = `🔍 XANDRSCAN REPORT\n━━━━━━━━━━━━━━━━━━\nToken: ${report.tokenName} (${report.symbol})\nChain: ${chain.toUpperCase()}\nRisk Score: ${report.riskScore}/100 — ${rsk.label}\n\n"${report.verdict}"\n\n🚩 Red Flags:\n${report.redFlags.map(f=>`• ${f}`).join('\n')}\n\n✅ Green Lights:\n${report.greenLights.map(g=>`• ${g}`).join('\n')}\n\n🧬 Rug DNA Match: ${report.rugDNA?.matchScore}/100\n${report.rugDNA?.patterns?.slice(0,2).map(p=>`• ${p}`).join('\n')}\n\n⚡ ${report.actionableAdvice}\n\nScanned by XANDRSCAN · xandrscan.vercel.app\nNot financial advice.`;
+    navigator.clipboard.writeText(txt).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2500);});
+  };
+
+  const shortAddr = w => w ? `${w.slice(0,6)}...${w.slice(-4)}` : '';
+  const risk = report ? getRisk(report.riskScore) : null;
+
+  if(!ready) return (
+    <div style={{minHeight:'100vh',background:C.bg,display:'flex',alignItems:'center',justifyContent:'center'}}>
+      <div className="spin" style={{color:C.blue,fontSize:28}}>⟳</div>
+    </div>
+  );
+
+  // ── SPLASH ──────────────────────────────────────────────────────────
+  if(page==='splash') return (
+    <div style={{minHeight:'100vh',background:C.bg,position:'relative',overflow:'hidden'}}>
+      <div style={{position:'fixed',inset:0,pointerEvents:'none'}}>
+        <div style={{position:'absolute',top:'-15%',left:'50%',transform:'translateX(-50%)',width:500,height:500,borderRadius:'50%',background:'radial-gradient(circle,rgba(0,194,255,0.07) 0%,transparent 65%)'}}/>
+        <div style={{position:'absolute',bottom:'5%',right:'-5%',width:300,height:300,borderRadius:'50%',background:'radial-gradient(circle,rgba(168,85,247,0.05) 0%,transparent 70%)'}}/>
+      </div>
+      <div style={{minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'32px 24px',textAlign:'center',position:'relative',zIndex:1}}>
+        <div style={{position:'relative',marginBottom:8}}>
+          <div style={{position:'absolute',inset:-20,borderRadius:'50%',background:'radial-gradient(circle,rgba(0,194,255,0.12) 0%,transparent 65%)',filter:'blur(10px)'}}/>
+          <div style={{position:'relative',filter:'drop-shadow(0 0 20px rgba(0,194,255,0.55)) drop-shadow(0 0 45px rgba(0,194,255,0.2))'}}>
+            <Logo size={96}/>
+          </div>
+        </div>
+
+        <div style={{fontSize:26,fontWeight:'bold',letterSpacing:7,marginTop:18,background:C.gradFull,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>XANDRSCAN</div>
+        <div style={{fontSize:10,color:C.textM,letterSpacing:4,marginTop:6}}>AI TOKEN RISK INTELLIGENCE</div>
+        <div style={{width:60,height:1,background:C.grad,margin:'20px auto',boxShadow:`0 0 10px ${C.blue}`}}/>
+        <div style={{maxWidth:280,fontSize:13,color:C.textM,lineHeight:2,marginBottom:24}}>
+          Scan any token. Detect rug patterns.<br/>
+          <span style={{color:C.text}}>Know the risk before you trade.</span>
+        </div>
+
+        <div style={{display:'flex',flexWrap:'wrap',gap:8,justifyContent:'center',marginBottom:32}}>
+          {[['🧬','Rug DNA'],['⚡','Live On-Chain'],['🌍','Africa-First'],['🔐','Wallet Login']].map(([ic,lb])=>(
+            <div key={lb} style={{fontSize:11,padding:'6px 14px',borderRadius:20,border:'1px solid rgba(0,194,255,0.18)',color:C.textM,background:'rgba(0,194,255,0.04)',display:'flex',alignItems:'center',gap:6}}>
+              <span>{ic}</span><span>{lb}</span>
+            </div>
+          ))}
+        </div>
+
+        <div style={{width:'100%',maxWidth:320}}>
+          <button onClick={connectWallet} disabled={connecting}
+            style={{width:'100%',padding:'15px',borderRadius:10,background:connecting?C.surfaceB:C.grad,color:connecting?C.textD:'#fff',border:'none',cursor:connecting?'not-allowed':'pointer',fontSize:12,fontWeight:'bold',letterSpacing:2,boxShadow:!connecting?'0 0 28px rgba(0,194,255,0.3),0 0 56px rgba(168,85,247,0.12)':'none',marginBottom:12}}>
+            {connecting ? <><span className="spin">⟳</span> CONNECTING...</> : '🔗 CONNECT WALLET'}
+          </button>
+
+          {walletErr && (
+            <div style={{background:'rgba(255,69,96,0.07)',border:'1px solid rgba(255,69,96,0.2)',borderRadius:9,padding:'12px 14px',fontSize:11,color:C.danger,lineHeight:1.7,textAlign:'left'}}>
+              {walletErr}
+              <div style={{marginTop:8,color:C.textD,fontSize:10}}>
+                💡 Try opening this page in:<br/>
+                • MetaMask mobile browser<br/>
+                • Trust Wallet browser<br/>
+                • Any Web3 wallet browser
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={{marginTop:28,fontSize:10,color:C.textD}}>
+          Built by <span style={{color:C.blue}}>LØRD XAND3R</span> · Web3 Intelligence
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── MAIN APP ────────────────────────────────────────────────────────
+  return (
+    <div style={{minHeight:'100vh',background:C.bg,color:C.text}}>
+      <div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:0}}>
+        <div style={{position:'absolute',top:0,left:'50%',transform:'translateX(-50%)',width:600,height:200,background:'radial-gradient(ellipse,rgba(0,194,255,0.04) 0%,transparent 70%)'}}/>
+      </div>
+
+      {/* ── PAYWALL MODAL ── */}
+      {modal==='paywall' && (
+        <Overlay>
+          <div style={{display:'flex',justifyContent:'center',filter:'drop-shadow(0 0 12px rgba(0,194,255,0.4))',marginBottom:10}}><Logo size={40}/></div>
+          <MT>{locked?'Free Scans Used Up':'Upgrade Plan'}</MT>
           <MS>Choose a plan. Pay via ETH on Base network.</MS>
           {['starter','pro','alpha'].map(t=>(
             <div key={t} onClick={()=>{setSelTier(t);setModal('pay');}}
